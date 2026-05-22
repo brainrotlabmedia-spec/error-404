@@ -28,11 +28,11 @@
 
         /* === SCREEN 1: FAKE ERROR PAGE === */
         #error-screen {
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100dvh;
             padding: 20px;
             padding-top: 10vh;
             display: flex;
@@ -84,11 +84,11 @@
 
         /* === SCREEN 2: PASSPHRASE PROMPT === */
         #passphrase-screen {
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100dvh;
             background-color: #000000;
             z-index: 30;
             display: flex;
@@ -106,6 +106,7 @@
 
         .passphrase-input-wrapper {
             position: relative;
+            transform: translateY(-15vh); /* Move up to avoid mobile keyboard */
         }
 
         #passphrase-input {
@@ -140,11 +141,11 @@
 
         /* === SCREEN 3: CHAT UI === */
         #chat-screen {
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100dvh;
             background-color: #121212;
             z-index: 40;
             display: flex;
@@ -431,10 +432,12 @@
         const IDLE_TIME_MS = 30000;
 
         // 3. Initialize Gun.js
-        // We use reliable public peers to relay encrypted messages
+        // We use a larger list of reliable public peers to ensure the message gets relayed
         const gun = Gun([
             'https://gun-manhattan.herokuapp.com/gun',
-            'https://relay.peer.ooo/gun'
+            'https://relay.peer.ooo/gun',
+            'https://peer.wallie.io/gun',
+            'https://gun-vue.js.org/gun'
         ]);
 
         // DOM Elements
@@ -551,7 +554,8 @@
 
         passphraseInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
-                const key = passphraseInput.value;
+                // Trim trailing spaces because mobile keyboards often add them automatically
+                const key = passphraseInput.value.trim();
                 if (!key) return;
 
                 // Success! Set up session.
