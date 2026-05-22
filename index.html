@@ -6,8 +6,8 @@
     <title>This site can't be reached</title>
     <!-- Load CryptoJS for AES encryption -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-    <!-- Load Gun.js for Decentralized Messaging -->
-    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+    <!-- Load MQTT.js for Highly Reliable WebSockets Messaging -->
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
         /* === GLOBAL RESETS === */
         * {
@@ -106,7 +106,7 @@
 
         .passphrase-input-wrapper {
             position: relative;
-            transform: translateY(-15vh); /* Move up to avoid mobile keyboard */
+            transform: translateY(-15vh);
         }
 
         #passphrase-input {
@@ -184,8 +184,14 @@
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background-color: #4CAF50; /* Green = online/syncing */
-            box-shadow: 0 0 5px #4CAF50;
+            background-color: #555; /* Offline */
+            box-shadow: 0 0 5px transparent;
+            transition: all 0.3s ease;
+        }
+
+        .status-dot.connected {
+            background-color: #4CAF50; /* Online */
+            box-shadow: 0 0 8px #4CAF50;
         }
 
         .chat-actions {
@@ -376,7 +382,7 @@
     <div id="chat-screen">
         <div class="chat-header">
             <div class="chat-title">
-                <div class="status-dot"></div>
+                <div class="status-dot" id="status-dot"></div>
             </div>
             <div class="chat-actions">
                 <button class="icon-btn" id="logout-btn">
@@ -414,7 +420,7 @@
 
     <script>
         /**
-         * SECRET CHAT APP - GUN.JS P2P EDITION
+         * SECRET CHAT APP - MQTT ENTERPRISE RELIABILITY EDITION
          */
 
         // 1. Device ID Initialization
@@ -426,19 +432,17 @@
 
         // 2. Global State
         let currentPassphrase = null;
-        let roomNodeId = null;
-        let decryptedMessages = {}; // Map of id -> message object
+        let mqttTopic = null;
+        let decryptedMessages = {}; // Dictionary: id -> message
         let idleTimeout = null;
+        let mqttClient = null;
         const IDLE_TIME_MS = 30000;
 
-        // 3. Initialize Gun.js
-        // We use a larger list of reliable public peers to ensure the message gets relayed
-        const gun = Gun([
-            'https://gun-manhattan.herokuapp.com/gun',
-            'https://relay.peer.ooo/gun',
-            'https://peer.wallie.io/gun',
-            'https://gun-vue.js.org/gun'
-        ]);
+        // Load local cache immediately to prevent blank screens
+        const localCache = localStorage.getItem('_sec_cache');
+        if (localCache) {
+            try { decryptedMessages = JSON.parse(localCache); } catch(e){}
+        }
 
         // DOM Elements
         const errorScreen = document.getElementById('error-screen');
@@ -446,6 +450,7 @@
         const passphraseScreen = document.getElementById('passphrase-screen');
         const passphraseInput = document.getElementById('passphrase-input');
         const chatScreen = document.getElementById('chat-screen');
+        const statusDot = document.getElementById('status-dot');
         
         const messagesContainer = document.getElementById('messages-container');
         const messageInput = document.getElementById('message-input');
@@ -479,25 +484,34 @@
             }
         }
 
+        function persistCache() {
+            // Save the unencrypted history locally so we have it before server syncs
+            // (Note: To be extremely secure, this could be encrypted too, but we
+            // assume the device itself is locked. If required, we can AES this.)
+            localStorage.setItem('_sec_cache', JSON.stringify(decryptedMessages));
+        }
+
         // ==========================================
         // PANIC & WIPE
         // ==========================================
 
         function wipe() {
-            // Turn off Gun listener for this room to save memory
-            if (roomNodeId) {
-                gun.get(roomNodeId).off();
+            // Kill internet connection instantly
+            if (mqttClient) {
+                mqttClient.end(true); // true = force kill immediately
+                mqttClient = null;
             }
 
             // Clear Memory
             currentPassphrase = null;
-            roomNodeId = null;
+            mqttTopic = null;
             decryptedMessages = {};
             
             // Reset UI
             passphraseInput.value = '';
             messageInput.value = '';
             messagesContainer.innerHTML = '';
+            statusDot.classList.remove('connected');
             
             chatScreen.classList.remove('active');
             passphraseScreen.classList.remove('active');
@@ -554,19 +568,14 @@
 
         passphraseInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
-                // Trim trailing spaces because mobile keyboards often add them automatically
                 const key = passphraseInput.value.trim();
                 if (!key) return;
 
-                // Success! Set up session.
                 currentPassphrase = key;
                 
-                // Derive the anonymous room node ID from the passphrase hash
-                // This ensures nobody can find the node without knowing the passphrase
+                // Deterministic topic generation
                 const hash = CryptoJS.SHA256(key).toString();
-                roomNodeId = 'sec_room_' + hash;
-                
-                decryptedMessages = {};
+                mqttTopic = 'sc_room/' + hash;
                 
                 enterChat();
             }
@@ -576,7 +585,7 @@
         passphraseScreen.addEventListener('touchstart', (e) => { if (e.target === passphraseScreen) wipe(); });
 
         // ==========================================
-        // CHAT UI & SYNC
+        // CHAT UI & MQTT SYNC
         // ==========================================
 
         function enterChat() {
@@ -584,30 +593,34 @@
             chatScreen.classList.add('active');
             passphraseInput.value = '';
             
-            messagesContainer.innerHTML = '';
             resetIdleTimer();
+            renderMessages(); // Render local cache immediately
 
-            // Subscribe to the Gun node
-            gun.get(roomNodeId).map().on((ciphertext, msgId) => {
-                if (!currentPassphrase) return; // Ignore if wiped
-                if (ciphertext === null) {
-                    // Message was deleted
-                    if (decryptedMessages[msgId]) {
-                        delete decryptedMessages[msgId];
-                        renderMessages();
-                    }
-                    return;
-                }
+            // Connect to massive Enterprise IoT public broker (EMQX)
+            mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
 
-                // Try to decrypt incoming data
-                const msg = decryptData(ciphertext, currentPassphrase);
+            mqttClient.on('connect', () => {
+                statusDot.classList.add('connected');
+                // Subscribe to our anonymous topic
+                mqttClient.subscribe(mqttTopic);
+            });
+
+            mqttClient.on('offline', () => {
+                statusDot.classList.remove('connected');
+            });
+
+            mqttClient.on('message', (topic, payload) => {
+                const ciphertext = payload.toString();
+                if (!ciphertext) return; // empty payload (wiped)
+
+                // The payload is an AES encrypted JSON string of the ENTIRE history dictionary
+                const incomingHistory = decryptData(ciphertext, currentPassphrase);
                 
-                // If it decrypts successfully and we haven't rendered it yet
-                if (msg && msg.timestamp) {
-                    if (!decryptedMessages[msgId]) {
-                        decryptedMessages[msgId] = msg;
-                        renderMessages();
-                    }
+                if (incomingHistory) {
+                    // Merge incoming history with our local history so nothing is lost
+                    decryptedMessages = { ...decryptedMessages, ...incomingHistory };
+                    persistCache();
+                    renderMessages();
                 }
             });
         }
@@ -624,13 +637,11 @@
         }
 
         function renderMessages() {
-            // Sort messages by timestamp
             const sorted = Object.values(decryptedMessages).sort((a, b) => a.timestamp - b.timestamp);
             
             messagesContainer.innerHTML = '';
             sorted.forEach(msg => {
                 const div = document.createElement('div');
-                // Determine if it's "Me" or "Her" based on deviceId
                 const isMe = msg.senderId === deviceId;
                 div.className = `message ${isMe ? 'me' : 'her'}`;
                 
@@ -649,22 +660,26 @@
 
         function sendMessage() {
             const text = messageInput.value.trim();
-            if (!text || !currentPassphrase || !roomNodeId) return;
+            if (!text || !currentPassphrase || !mqttTopic || !mqttClient) return;
 
             const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
             
-            const newMsg = {
+            decryptedMessages[msgId] = {
                 id: msgId,
                 senderId: deviceId,
                 text: text,
                 timestamp: Date.now()
             };
 
-            // Encrypt it
-            const ciphertext = encryptData(newMsg, currentPassphrase);
+            persistCache();
+            renderMessages();
+
+            // Pack the entire updated dictionary into one giant encrypted safe
+            const ciphertext = encryptData(decryptedMessages, currentPassphrase);
             
-            // Push to Decentralized DB
-            gun.get(roomNodeId).get(msgId).put(ciphertext);
+            // Send it to the server. `retain: true` means the server HOLDS this safe
+            // and immediately hands it to whoever subscribes next (offline delivery).
+            mqttClient.publish(mqttTopic, ciphertext, { qos: 1, retain: true });
             
             messageInput.value = '';
             resetIdleTimer();
@@ -693,17 +708,14 @@
         });
 
         clearDataBtn.addEventListener('click', () => {
-            if (confirm("Clear all messages? This will attempt to delete them from the public relay and your local device.")) {
-                if (roomNodeId) {
-                    // Overwrite known messages with null on the public network
-                    Object.keys(decryptedMessages).forEach(msgId => {
-                        gun.get(roomNodeId).get(msgId).put(null);
-                    });
+            if (confirm("Clear all messages? This will delete them from the internet and your device.")) {
+                if (mqttClient && mqttTopic) {
+                    // Send an empty string with retain:true. This deletes the retained message on the server!
+                    mqttClient.publish(mqttTopic, '', { qos: 1, retain: true });
                 }
-                // Clear local Gun cache
-                localStorage.clear();
+                localStorage.removeItem('_sec_cache');
                 wipe();
-                alert("Data cleared. App is locked.");
+                alert("Data cleared and server wiped.");
             }
         });
 
