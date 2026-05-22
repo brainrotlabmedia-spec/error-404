@@ -239,6 +239,102 @@
             to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
+        /* Read Receipts */
+        .read-receipt {
+            font-size: 11px;
+            margin-left: 5px;
+            letter-spacing: -2px;
+            font-weight: bold;
+        }
+        .read-receipt.sent {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        .read-receipt.read {
+            color: #34d399; /* Bright green */
+        }
+
+        /* Reactions */
+        .reaction-badge {
+            position: absolute;
+            bottom: -10px;
+            right: 15px;
+            background: rgba(30, 35, 55, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 2px 6px;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            transform: translateZ(0);
+        }
+        .message.me .reaction-badge {
+            right: auto;
+            left: 15px;
+        }
+
+        .emoji-picker {
+            position: fixed;
+            background: rgba(30, 35, 55, 0.95);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 16px;
+            border-radius: 30px;
+            display: flex;
+            gap: 16px;
+            z-index: 9999;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            transform: scale(0);
+            transform-origin: bottom center;
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            pointer-events: none;
+        }
+        .emoji-picker.active {
+            transform: scale(1);
+            pointer-events: auto;
+        }
+        .emoji-picker span {
+            font-size: 26px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .emoji-picker span:hover {
+            transform: scale(1.3);
+        }
+
+        /* Typing Indicator Glass Bubble */
+        #typing-indicator {
+            padding: 8px 16px;
+            margin: 0 20px 10px 20px;
+            background: rgba(45, 50, 70, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            width: fit-content;
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            transform: translateZ(0);
+        }
+        #typing-indicator.active {
+            opacity: 1;
+        }
+        .dot {
+            width: 6px; height: 6px;
+            background-color: #94a3b8;
+            border-radius: 50%;
+            animation: typingBounce 1.4s infinite ease-in-out both;
+        }
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typingBounce {
+            0%, 80%, 100% { transform: scale(0.4); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
         .message.me {
             align-self: flex-end;
             background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
@@ -288,6 +384,49 @@
             gap: 12px;
             position: relative;
             z-index: 10;
+        }
+
+        #destruct-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: #64748b;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            transform: translateZ(0);
+        }
+
+        #destruct-btn.active {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+        }
+
+        #attach-btn {
+            background: transparent;
+            border: none;
+            color: #64748b;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            transition: all 0.3s ease;
+        }
+        #attach-btn:hover {
+            color: #3b82f6;
+            background: rgba(255, 255, 255, 0.05);
         }
 
         #message-input {
@@ -450,13 +589,30 @@
             </div>
             
             <div id="settings-menu">
+                <button class="settings-option" id="enable-notifs-btn">Enable Stealth Alerts</button>
                 <button class="settings-option danger" id="clear-data-btn">Clear All Data</button>
             </div>
         </div>
 
         <div id="messages-container"></div>
+        
+        <div id="typing-indicator">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        </div>
 
         <div class="chat-input-area">
+            <button id="destruct-btn" title="Self-Destruct (30s)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+            </button>
+            <button id="attach-btn" title="Send Photo">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                </svg>
+            </button>
+            <input type="file" id="image-upload" accept="image/*" style="display: none;">
             <input type="text" id="message-input" placeholder="Message" autocomplete="off">
             <button id="send-btn">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -465,6 +621,15 @@
                 </svg>
             </button>
         </div>
+    </div>
+
+    <!-- Emoji Picker -->
+    <div id="emoji-picker" class="emoji-picker">
+        <span onclick="sendReaction('❤️')">❤️</span>
+        <span onclick="sendReaction('👍')">👍</span>
+        <span onclick="sendReaction('😂')">😂</span>
+        <span onclick="sendReaction('😮')">😮</span>
+        <span onclick="sendReaction('😡')">😡</span>
     </div>
 
     <script>
@@ -492,9 +657,13 @@
         let deviceId = null;
         let currentPassphrase = null;
         let roomRef = null;
+        let typingRef = null;
+        let typingTimeout = null;
         let decryptedMessages = {}; // Dictionary: id -> message
         let idleTimeout = null;
         const IDLE_TIME_MS = 30000;
+        let isSoftLocked = false;
+        const originalTitle = document.title;
 
         // Track connection state
         const connectedRef = db.ref(".info/connected");
@@ -515,12 +684,17 @@
         const chatScreen = document.getElementById('chat-screen');
         
         const messagesContainer = document.getElementById('messages-container');
+        const typingIndicator = document.getElementById('typing-indicator');
         const messageInput = document.getElementById('message-input');
         const sendBtn = document.getElementById('send-btn');
+        const attachBtn = document.getElementById('attach-btn');
+        const imageUpload = document.getElementById('image-upload');
+        const emojiPicker = document.getElementById('emoji-picker');
         
         const logoutBtn = document.getElementById('logout-btn');
         const settingsBtn = document.getElementById('settings-btn');
         const settingsMenu = document.getElementById('settings-menu');
+        const enableNotifsBtn = document.getElementById('enable-notifs-btn');
         const clearDataBtn = document.getElementById('clear-data-btn');
 
         // ==========================================
@@ -547,7 +721,7 @@
         }
 
         // ==========================================
-        // PANIC & WIPE
+        // PANIC & WIPE (BOSS KEY)
         // ==========================================
 
         function wipe() {
@@ -556,39 +730,179 @@
                 roomRef.off();
                 roomRef = null;
             }
+            if (typingRef) {
+                typingRef.child(deviceId).remove();
+                typingRef.off();
+                typingRef = null;
+            }
+            if (typingTimeout) clearTimeout(typingTimeout);
 
             // Clear Memory
             currentPassphrase = null;
             decryptedMessages = {};
+            isSoftLocked = false;
             
             // Reset UI
             passphraseInput.value = '';
             messageInput.value = '';
             messagesContainer.innerHTML = '';
+            typingIndicator.classList.remove('active');
+            emojiPicker.classList.remove('active');
             
             chatScreen.classList.remove('active');
-            passphraseScreen.classList.remove('active');
+            passphraseScreen.classList.add('active'); // Fixed black screen
             settingsMenu.classList.remove('active');
             
+            const lockContainer = document.querySelector('.lock-container');
+            if (lockContainer) {
+                lockContainer.style.opacity = '0';
+                lockContainer.style.pointerEvents = 'none';
+            }
+            clickCount = 0;
+            document.activeElement.blur();
+        }
+
+        function softLock() {
+            if (!chatScreen.classList.contains('active')) return;
+            isSoftLocked = true;
+            
+            messagesContainer.innerHTML = ''; // Hide DOM for security
+            passphraseInput.value = '';
+            messageInput.value = '';
+            typingIndicator.classList.remove('active');
+            emojiPicker.classList.remove('active');
+            
+            chatScreen.classList.remove('active');
+            passphraseScreen.classList.add('active');
+            settingsMenu.classList.remove('active');
+            
+            const lockContainer = document.querySelector('.lock-container');
+            if (lockContainer) {
+                lockContainer.style.opacity = '0';
+                lockContainer.style.pointerEvents = 'none';
+            }
+            clickCount = 0;
             document.activeElement.blur();
         }
 
         function resetIdleTimer() {
             if (idleTimeout) clearTimeout(idleTimeout);
             if (currentPassphrase) {
-                idleTimeout = setTimeout(wipe, IDLE_TIME_MS);
+                idleTimeout = setTimeout(softLock, IDLE_TIME_MS);
             }
         }
 
-        document.addEventListener('visibilitychange', () => { if (document.hidden) wipe(); });
+        function changeFavicon(type) {
+            let link = document.querySelector("link[rel~='icon']");
+            if (!link) {
+                link = document.createElement('link');
+                link.rel = 'icon';
+                document.head.appendChild(link);
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = 16;
+            canvas.height = 16;
+            const ctx = canvas.getContext('2d');
+            ctx.beginPath();
+            ctx.arc(8, 8, 8, 0, 2 * Math.PI);
+            ctx.fillStyle = type === 'darkgray' ? '#475569' : '#94a3b8';
+            ctx.fill();
+            link.href = canvas.toDataURL();
+        }
+
+        let hasActiveNotification = false;
+
+        function notifyBackground() {
+            document.title = "Network Timeout"; // subtle change from ERR_CONNECTION_ABORTED
+            changeFavicon('darkgray');
+
+            if ("Notification" in window && Notification.permission === "granted") {
+                if (!hasActiveNotification) {
+                    hasActiveNotification = true;
+                    // Send a completely disguised push notification
+                    const n = new Notification("System Optimization", {
+                        body: "Background cache cleared successfully.",
+                        tag: "stealth_alert", // Ensures it groups and never stacks multiple notifications
+                        silent: true // Prevents loud buzzing if possible
+                    });
+                    n.onclick = function() {
+                        window.focus();
+                        n.close();
+                    };
+                }
+            }
+        }
+
+        function clearNotification() {
+            document.title = originalTitle;
+            changeFavicon('lightgray');
+            hasActiveNotification = false;
+        }
+
+        function markUnreadMessagesAsRead() {
+            if (document.hidden || !roomRef || !currentPassphrase) return;
+            for (const [id, msg] of Object.entries(decryptedMessages)) {
+                if (msg.senderId !== deviceId && !msg.read && msg.firebaseKey) {
+                    roomRef.child(msg.firebaseKey).update({ read: true });
+                    msg.read = true; // Optimistic local update
+                }
+            }
+        }
+
+        document.addEventListener('visibilitychange', () => { 
+            if (document.hidden) {
+                softLock();
+            } else {
+                clearNotification();
+                if (chatScreen.classList.contains('active')) {
+                    markUnreadMessagesAsRead();
+                }
+            }
+        });
         window.addEventListener('pagehide', wipe);
-        window.addEventListener('blur', wipe);
+        window.addEventListener('blur', softLock);
         
         ['touchstart', 'mousemove', 'keydown', 'scroll'].forEach(evt => {
             window.addEventListener(evt, () => {
                 if (chatScreen.classList.contains('active')) resetIdleTimer();
             });
         });
+
+        // --- PANIC GESTURES ---
+        // 1. Desktop: Double tap 'Escape'
+        let escTapCount = 0;
+        let escTimeout = null;
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                escTapCount++;
+                if (escTimeout) clearTimeout(escTimeout);
+                if (escTapCount >= 2) {
+                    escTapCount = 0;
+                    wipe();
+                } else {
+                    escTimeout = setTimeout(() => { escTapCount = 0; }, 500);
+                }
+            }
+        });
+
+        // 2. Mobile: Two-finger swipe down
+        let touchStartY = 0;
+        window.addEventListener('touchstart', (e) => {
+            if (e.touches.length >= 2) {
+                touchStartY = e.touches[0].clientY;
+            }
+        }, {passive: true});
+        
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length >= 2 && touchStartY > 0) {
+                const currentY = e.touches[0].clientY;
+                if (currentY - touchStartY > 100) { // 100px swipe down threshold
+                    touchStartY = 0; // reset
+                    wipe();
+                }
+            }
+        }, {passive: true});
+        window.addEventListener('touchend', () => { touchStartY = 0; });
 
         // ==========================================
         // UNLOCK FLOW
@@ -652,7 +966,11 @@
                 
                 // Generate a deterministic Firebase path based on the encryption key
                 const roomHash = CryptoJS.SHA256(currentPassphrase).toString();
+                if (roomRef) roomRef.off(); // Detach old listeners to prevent duplicates
                 roomRef = db.ref('rooms/' + roomHash);
+                
+                if (typingRef) typingRef.off();
+                typingRef = db.ref('typing/' + roomHash);
                 
                 enterChat();
             }
@@ -666,13 +984,38 @@
         // ==========================================
 
         function enterChat() {
+            isSoftLocked = false;
+            clearNotification();
             passphraseScreen.classList.remove('active');
             chatScreen.classList.add('active');
             passphraseInput.value = '';
             
             decryptedMessages = {};
             messagesContainer.innerHTML = '';
+            typingIndicator.classList.remove('active');
+            emojiPicker.classList.remove('active');
             resetIdleTimer();
+
+            // Listen for typing events from the other user
+            typingRef.on('value', (snapshot) => {
+                if (!currentPassphrase) return;
+                const data = snapshot.val();
+                let someoneElseTyping = false;
+                if (data) {
+                    for (const [uid, isTyping] of Object.entries(data)) {
+                        if (uid !== deviceId && isTyping) {
+                            someoneElseTyping = true;
+                            break;
+                        }
+                    }
+                }
+                if (someoneElseTyping) {
+                    typingIndicator.classList.add('active');
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                } else {
+                    typingIndicator.classList.remove('active');
+                }
+            });
 
             // Listen for any old or new messages added to Firebase
             roomRef.on('child_added', (snapshot) => {
@@ -683,8 +1026,52 @@
                     const msg = decryptData(data.ciphertext, currentPassphrase);
                     
                     if (msg && msg.id && !decryptedMessages[msg.id]) {
+                        msg.firebaseKey = snapshot.key; // Track exact database key for targeted deletion
+                        msg.read = data.read || false; // Track read status
+                        msg.reactions = data.reactions || {}; // Track reactions
                         decryptedMessages[msg.id] = msg;
                         renderMessages();
+
+                        if (msg.senderId !== deviceId) {
+                            if (document.hidden || isSoftLocked) {
+                                notifyBackground();
+                            } else if (!msg.read) {
+                                // Mark as read if we are looking at it
+                                roomRef.child(snapshot.key).update({ read: true });
+                            }
+                        }
+
+                        // SELF DESTRUCT LOGIC
+                        // If the message has self-destruct enabled, and WE are the recipient opening it
+                        if (msg.selfDestruct && msg.senderId !== deviceId) {
+                            setTimeout(() => {
+                                // Delete it permanently from Google Servers
+                                if (roomRef) roomRef.child(snapshot.key).remove();
+                            }, 30000); // 30 seconds after reading
+                        }
+                    }
+                }
+            });
+
+            // Listen for read receipt & reaction updates
+            roomRef.on('child_changed', (snapshot) => {
+                if (!currentPassphrase) return;
+                const data = snapshot.val();
+                if (data) {
+                    for (const [id, msg] of Object.entries(decryptedMessages)) {
+                        if (msg.firebaseKey === snapshot.key) {
+                            let updated = false;
+                            if (data.read && !msg.read) {
+                                msg.read = true;
+                                updated = true;
+                            }
+                            if (JSON.stringify(data.reactions) !== JSON.stringify(msg.reactions)) {
+                                msg.reactions = data.reactions || {};
+                                updated = true;
+                            }
+                            if (updated) renderMessages();
+                            break;
+                        }
                     }
                 }
             });
@@ -715,30 +1102,118 @@
         }
 
         function renderMessages() {
+            if (isSoftLocked) return;
+            // Sort by timestamp
             const sorted = Object.values(decryptedMessages).sort((a, b) => a.timestamp - b.timestamp);
             
             messagesContainer.innerHTML = '';
             sorted.forEach(msg => {
                 const div = document.createElement('div');
-                const isMe = msg.senderId === deviceId;
-                div.className = `message ${isMe ? 'me' : 'her'}`;
+                div.className = 'message ' + (msg.senderId === deviceId ? 'me' : 'her');
                 
-                const textNode = document.createTextNode(msg.text);
-                div.appendChild(textNode);
+                // Render Image
+                if (msg.image) {
+                    const imgEl = document.createElement('img');
+                    imgEl.src = msg.image;
+                    imgEl.style.cssText = 'max-width: 100%; border-radius: 12px; margin-bottom: 6px; display: block; object-fit: contain; cursor: pointer;';
+                    imgEl.onclick = () => {
+                        const win = window.open();
+                        win.document.write('<body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;height:100vh;"><img src="'+msg.image+'" style="max-width:100%;max-height:100%;"></body>');
+                    };
+                    div.appendChild(imgEl);
+                }
+
+                // Render Text
+                if (msg.text) {
+                    const p = document.createElement('div');
+                    p.style.marginBottom = '6px';
+                    p.textContent = msg.text;
+                    div.appendChild(p);
+                }
                 
                 const timeSpan = document.createElement('span');
                 timeSpan.className = 'message-time';
                 timeSpan.textContent = formatTime(msg.timestamp);
+                
+                if (msg.selfDestruct) {
+                    const bombSpan = document.createElement('span');
+                    bombSpan.innerHTML = ' &nbsp;⏳';
+                    bombSpan.style.color = '#ef4444';
+                    timeSpan.appendChild(bombSpan);
+                }
+
+                // Append Read Receipts
+                if (msg.senderId === deviceId) {
+                    const checkSpan = document.createElement('span');
+                    checkSpan.className = 'read-receipt ' + (msg.read ? 'read' : 'sent');
+                    checkSpan.textContent = '✓✓';
+                    timeSpan.appendChild(checkSpan);
+                }
+                
                 div.appendChild(timeSpan);
                 
+                // Append Reactions
+                if (msg.reactions) {
+                    let emojis = [];
+                    for (const [uid, emoji] of Object.entries(msg.reactions)) {
+                        emojis.push(emoji);
+                    }
+                    if (emojis.length > 0) {
+                        const reactionSpan = document.createElement('div');
+                        reactionSpan.className = 'reaction-badge';
+                        reactionSpan.textContent = emojis.join('');
+                        div.appendChild(reactionSpan);
+                    }
+                }
+                
+                // Double tap / double click to react
+                let lastTapTime = 0;
+                div.addEventListener('touchend', (e) => {
+                    const currentTime = new Date().getTime();
+                    const tapLength = currentTime - lastTapTime;
+                    if (tapLength < 500 && tapLength > 0 && msg.firebaseKey) {
+                        showEmojiPicker(msg.firebaseKey, div);
+                        e.preventDefault();
+                    }
+                    lastTapTime = currentTime;
+                });
+                div.addEventListener('dblclick', (e) => {
+                    if (msg.firebaseKey) showEmojiPicker(msg.firebaseKey, div);
+                });
+
                 messagesContainer.appendChild(div);
             });
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
+        let isSelfDestructOn = false;
+        const destructBtn = document.getElementById('destruct-btn');
+        destructBtn.addEventListener('click', () => {
+            isSelfDestructOn = !isSelfDestructOn;
+            destructBtn.classList.toggle('active');
+        });
+
+        messageInput.addEventListener('input', () => {
+            if (!typingRef || !currentPassphrase) return;
+            const text = messageInput.value.trim();
+            if (text.length > 0) {
+                typingRef.child(deviceId).set(true);
+                if (typingTimeout) clearTimeout(typingTimeout);
+                typingTimeout = setTimeout(() => {
+                    typingRef.child(deviceId).remove();
+                }, 2000);
+            } else {
+                typingRef.child(deviceId).remove();
+            }
+        });
+
         function sendMessage() {
             const text = messageInput.value.trim();
             if (!text || !currentPassphrase || !roomRef) return;
+
+            // Clear typing state immediately
+            if (typingTimeout) clearTimeout(typingTimeout);
+            if (typingRef) typingRef.child(deviceId).remove();
 
             const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
             
@@ -746,10 +1221,14 @@
                 id: msgId,
                 senderId: deviceId,
                 text: text,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                selfDestruct: isSelfDestructOn
             };
 
             // Immediately display on local screen for fast feedback
+            // We'll generate a fake firebaseKey just so local remove works perfectly, 
+            // but it will be replaced if we ever reload.
+            // Actually, for the sender, child_added will trigger and merge the real firebaseKey.
             decryptedMessages[msgId] = newMsg;
             renderMessages();
 
@@ -757,7 +1236,7 @@
             const ciphertext = encryptData(newMsg, currentPassphrase);
             roomRef.push({
                 ciphertext: ciphertext,
-                timestamp: firebase.database.ServerValue.TIMESTAMP // Track true server time for cleanup if needed
+                timestamp: firebase.database.ServerValue.TIMESTAMP
             });
             
             messageInput.value = '';
@@ -782,6 +1261,21 @@
             resetIdleTimer();
         });
 
+        enableNotifsBtn.addEventListener('click', () => {
+            if ("Notification" in window) {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        alert("Stealth Alerts Active.\n\nWhen you receive a text in the background, your phone will show a fake notification saying 'System Optimization: Background cache cleared successfully.'");
+                    } else {
+                        alert("Permission denied. You must allow notifications in your browser settings.");
+                    }
+                });
+            } else {
+                alert("Your browser does not support push notifications.");
+            }
+            settingsMenu.classList.remove('active');
+        });
+
         document.addEventListener('click', () => {
             settingsMenu.classList.remove('active');
         });
@@ -796,6 +1290,108 @@
                 } else {
                     wipe();
                 }
+            }
+        });
+
+        // Image Upload Logic
+        attachBtn.addEventListener('click', () => {
+            imageUpload.click();
+        });
+
+        imageUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    // Compress Image heavily (Firebase limit + speed)
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    const MAX_SIZE = 1200;
+
+                    if (width > height) {
+                        if (width > MAX_SIZE) {
+                            height *= MAX_SIZE / width;
+                            width = MAX_SIZE;
+                        }
+                    } else {
+                        if (height > MAX_SIZE) {
+                            width *= MAX_SIZE / height;
+                            height = MAX_SIZE;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    const base64Image = canvas.toDataURL('image/jpeg', 0.6); // 60% quality jpeg
+                    sendImageMessage(base64Image);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+            imageUpload.value = ''; // reset
+        });
+
+        function sendImageMessage(base64Image) {
+            if (!currentPassphrase || !roomRef) return;
+
+            const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+            
+            const newMsg = {
+                id: msgId,
+                senderId: deviceId,
+                text: '',
+                image: base64Image,
+                timestamp: Date.now(),
+                selfDestruct: isSelfDestructOn
+            };
+
+            decryptedMessages[msgId] = newMsg;
+            renderMessages();
+
+            const ciphertext = encryptData(newMsg, currentPassphrase);
+            roomRef.push({
+                ciphertext: ciphertext,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            });
+        }
+
+        window.addEventListener('beforeunload', () => {
+            if (typingRef) typingRef.child(deviceId).remove();
+        });
+
+        // Emoji Picker Logic
+        function showEmojiPicker(firebaseKey, bubbleElement) {
+            activeReactionMsgKey = firebaseKey;
+            const rect = bubbleElement.getBoundingClientRect();
+            emojiPicker.style.top = (rect.top - 60) + 'px';
+            
+            let leftPos = rect.left + (rect.width / 2) - 100;
+            if (leftPos < 10) leftPos = 10;
+            if (leftPos + 200 > window.innerWidth) leftPos = window.innerWidth - 210;
+            emojiPicker.style.left = leftPos + 'px';
+            
+            emojiPicker.classList.add('active');
+        }
+
+        function sendReaction(emoji) {
+            if (activeReactionMsgKey && roomRef) {
+                roomRef.child(activeReactionMsgKey).child('reactions').child(deviceId).set(emoji);
+                activeReactionMsgKey = null;
+                emojiPicker.classList.remove('active');
+            }
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.message') && !e.target.closest('.emoji-picker')) {
+                emojiPicker.classList.remove('active');
+                activeReactionMsgKey = null;
             }
         });
 
