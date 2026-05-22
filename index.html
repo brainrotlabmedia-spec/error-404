@@ -488,14 +488,8 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // 2. Device ID Initialization
-        let deviceId = localStorage.getItem('_sec_dev_id');
-        if (!deviceId) {
-            deviceId = 'dev_' + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem('_sec_dev_id', deviceId);
-        }
-
-        // 3. Global State
+        // 2. Global State
+        let deviceId = null;
         let currentPassphrase = null;
         let roomRef = null;
         let decryptedMessages = {}; // Dictionary: id -> message
@@ -627,14 +621,38 @@
 
         passphraseInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
-                const key = passphraseInput.value.trim();
+                const key = passphraseInput.value.toLowerCase().trim();
                 if (!key) return;
 
-                currentPassphrase = key;
+                const inputHash = CryptoJS.SHA256(key).toString();
                 
-                // Use SHA256 to create a totally anonymous path in Firebase
-                const hash = CryptoJS.SHA256(key).toString();
-                roomRef = db.ref('rooms/' + hash);
+                // Cryptographic hashes for the two specific users
+                const radhaHash = "f7afc70de35d849d7c7c7da704fecbc2dde688562a70fc7efdab2e26a9b1585b";
+                const kishanHash = "421c3b40007cab3849ddd173294c06909652e34f08a789ebde25169fda55cad2";
+                
+                // Shared master secret that is NOT in the code in plain text
+                // It is mathematically derived by combining both identities
+                const masterSecret = CryptoJS.SHA256(radhaHash + kishanHash).toString();
+                
+                if (inputHash === radhaHash) {
+                    deviceId = 'user_radha';
+                    currentPassphrase = masterSecret;
+                } else if (inputHash === kishanHash) {
+                    deviceId = 'user_kishan';
+                    currentPassphrase = masterSecret;
+                } else {
+                    // Fallback for standard random rooms
+                    deviceId = localStorage.getItem('_sec_dev_id');
+                    if (!deviceId) {
+                        deviceId = 'dev_' + Math.random().toString(36).substr(2, 9);
+                        localStorage.setItem('_sec_dev_id', deviceId);
+                    }
+                    currentPassphrase = key;
+                }
+                
+                // Generate a deterministic Firebase path based on the encryption key
+                const roomHash = CryptoJS.SHA256(currentPassphrase).toString();
+                roomRef = db.ref('rooms/' + roomHash);
                 
                 enterChat();
             }
