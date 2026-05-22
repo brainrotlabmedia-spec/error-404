@@ -29,24 +29,8 @@
             overflow: hidden;
         }
 
-        /* === SCREEN 1: FAKE ERROR PAGE (Remains Flat) === */
-        #error-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100dvh;
-            padding: 20px;
-            padding-top: 10vh;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            z-index: 10;
-            background-color: #ffffff;
-        }
-
-        .error-icon { color: #5f6368; margin-bottom: 24px; }
-        .error-icon svg { width: 48px; height: 48px; }
+        /* === Error Decoy Base (Overridden by #decoy-error) === */
+        .error-icon { margin-top: 40px; margin-bottom: 24px; width: 48px; height: 48px; color: #8ab4f8; }
         .error-title { font-size: 24px; font-weight: 400; margin-bottom: 16px; }
         .error-desc { font-size: 14px; color: #5f6368; margin-bottom: 32px; line-height: 1.5; }
         .error-code { font-size: 12px; color: #80868b; }
@@ -536,22 +520,100 @@
         .settings-option.danger {
             color: #ef4444;
         }
+
+        /* Responsive adjustments for mobile */
+        @media (max-width: 400px) {
+            .chat-input-area {
+                padding: 10px 12px;
+                gap: 8px;
+            }
+            #message-input {
+                padding: 10px 14px;
+                font-size: 14px;
+            }
+            #destruct-btn {
+                width: 36px;
+                height: 36px;
+            }
+            #attach-btn {
+                width: 34px;
+                height: 34px;
+            }
+            #send-btn {
+                width: 40px;
+                height: 40px;
+            }
+        }
+
+        /* Decoy Pages CSS */
+        .decoy-page {
+            display: none;
+            width: 100vw;
+            height: 100dvh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
+        }
+        .decoy-page.active {
+            display: block;
+        }
+        #decoy-error {
+            padding: 24px;
+            background-color: #202124;
+            color: #bdc1c6;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            font-family: Arial, sans-serif;
+        }
     </style>
 </head>
 <body>
 
-    <!-- SCREEN 1: FAKE ERROR -->
-    <div id="error-screen">
-        <div class="error-icon">
-            <svg focusable="false" viewBox="0 0 24 24">
-                <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"></path>
-            </svg>
+    <!-- SCREEN 1: DECOYS (Always at the bottom) -->
+    <div id="decoy-container">
+        <!-- Error Decoy -->
+        <div id="decoy-error" class="decoy-page active">
+            <div class="error-icon">
+                <svg focusable="false" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"></path>
+                </svg>
+            </div>
+            <h1 class="error-title">This site can't be reached</h1>
+            <p class="error-desc">
+                The webpage at <strong>https://example.com/</strong> might be temporarily down or it may have moved permanently to a new web address.
+            </p>
+            <p class="error-code">ERR_CONNECTION_ABORTED</p>
         </div>
-        <h1 class="error-title">This site can't be reached</h1>
-        <p class="error-desc">
-            The webpage at <strong>https://example.com/</strong> might be temporarily down or it may have moved permanently to a new web address.
-        </p>
-        <p class="error-code">ERR_CONNECTION_ABORTED</p>
+
+        <!-- Math Decoy -->
+        <div id="decoy-math" class="decoy-page">
+            <div style="padding: 20px; font-family: 'Times New Roman', Times, serif; color: #000; background: #fff; min-height: 100vh;">
+                <h1 style="font-size: 24px; border-bottom: 2px solid #000; padding-bottom: 10px;">Calculus Homework 4</h1>
+                <p><strong>Problem 1:</strong> Find the derivative of f(x) = x³ + 4x² - 2x + 1</p>
+                <p><em>Solution:</em></p>
+                <p>f'(x) = 3x² + 8x - 2</p>
+                <br>
+                <p><strong>Problem 2:</strong> Evaluate the integral ∫ (2x + 1) dx</p>
+                <p><em>Solution:</em></p>
+                <p>= x² + x + C</p>
+                <br>
+                <p><strong>Problem 3:</strong> Find the limit as x approaches 0 of sin(x)/x</p>
+                <p><em>Solution:</em></p>
+                <p>Using L'Hôpital's Rule: lim (x→0) cos(x)/1 = 1</p>
+            </div>
+        </div>
+
+        <!-- Wiki Decoy -->
+        <div id="decoy-wiki" class="decoy-page">
+            <div style="padding: 20px; font-family: sans-serif; color: #202122; background: #fff; min-height: 100vh;">
+                <div style="font-size: 28px; font-family: 'Linux Libertine', Georgia, Times, serif; border-bottom: 1px solid #a2a9b1; padding-bottom: 5px; margin-bottom: 15px;">Photosynthesis</div>
+                <p style="font-size: 14px; line-height: 1.6;">Photosynthesis is a system of biological processes by which photosynthetic organisms, such as most plants, algae, and cyanobacteria, convert light energy, typically from sunlight, into the chemical energy necessary to fuel their metabolisms.</p>
+                <h2 style="font-size: 20px; border-bottom: 1px solid #a2a9b1; padding-bottom: 5px; margin-top: 20px;">Process</h2>
+                <p style="font-size: 14px; line-height: 1.6;">In plants, photosynthesis takes place in chloroplasts, which contain the chlorophyll. Photosynthesis is largely responsible for producing and maintaining the oxygen content of the Earth's atmosphere.</p>
+            </div>
+        </div>
     </div>
 
     <!-- UNLOCK TRIGGER -->
@@ -589,6 +651,7 @@
             </div>
             
             <div id="settings-menu">
+                <button class="settings-option" id="change-decoy-btn">Change Decoy Page</button>
                 <button class="settings-option" id="enable-notifs-btn">Enable Stealth Alerts</button>
                 <button class="settings-option danger" id="clear-data-btn">Clear All Data</button>
             </div>
@@ -663,6 +726,7 @@
         let idleTimeout = null;
         const IDLE_TIME_MS = 30000;
         let isSoftLocked = false;
+        let isSelectingFile = false; // Prevents wipe when file picker opens
         const originalTitle = document.title;
 
         // Track connection state
@@ -677,7 +741,6 @@
         });
 
         // DOM Elements
-        const errorScreen = document.getElementById('error-screen');
         const unlockTrigger = document.getElementById('unlock-trigger');
         const passphraseScreen = document.getElementById('passphrase-screen');
         const passphraseInput = document.getElementById('passphrase-input');
@@ -694,8 +757,30 @@
         const logoutBtn = document.getElementById('logout-btn');
         const settingsBtn = document.getElementById('settings-btn');
         const settingsMenu = document.getElementById('settings-menu');
+        const changeDecoyBtn = document.getElementById('change-decoy-btn');
         const enableNotifsBtn = document.getElementById('enable-notifs-btn');
         const clearDataBtn = document.getElementById('clear-data-btn');
+
+        // ==========================================
+        // DECOY LOGIC
+        // ==========================================
+        const decoyTypes = ['error', 'math', 'wiki'];
+        let currentDecoyIndex = decoyTypes.indexOf(localStorage.getItem('_sec_decoy') || 'error');
+        if (currentDecoyIndex === -1) currentDecoyIndex = 0;
+
+        function updateDecoyPage() {
+            document.querySelectorAll('.decoy-page').forEach(el => el.classList.remove('active'));
+            document.getElementById('decoy-' + decoyTypes[currentDecoyIndex]).classList.add('active');
+        }
+        updateDecoyPage();
+
+        changeDecoyBtn.addEventListener('click', () => {
+            currentDecoyIndex = (currentDecoyIndex + 1) % decoyTypes.length;
+            localStorage.setItem('_sec_decoy', decoyTypes[currentDecoyIndex]);
+            updateDecoyPage();
+            alert("Decoy Page changed to: " + decoyTypes[currentDecoyIndex].toUpperCase());
+            settingsMenu.classList.remove('active');
+        });
 
         // ==========================================
         // CRYPTOGRAPHY
@@ -750,14 +835,9 @@
             emojiPicker.classList.remove('active');
             
             chatScreen.classList.remove('active');
-            passphraseScreen.classList.add('active'); // Fixed black screen
+            passphraseScreen.classList.remove('active');
             settingsMenu.classList.remove('active');
             
-            const lockContainer = document.querySelector('.lock-container');
-            if (lockContainer) {
-                lockContainer.style.opacity = '0';
-                lockContainer.style.pointerEvents = 'none';
-            }
             clickCount = 0;
             document.activeElement.blur();
         }
@@ -773,14 +853,9 @@
             emojiPicker.classList.remove('active');
             
             chatScreen.classList.remove('active');
-            passphraseScreen.classList.add('active');
+            passphraseScreen.classList.remove('active');
             settingsMenu.classList.remove('active');
             
-            const lockContainer = document.querySelector('.lock-container');
-            if (lockContainer) {
-                lockContainer.style.opacity = '0';
-                lockContainer.style.pointerEvents = 'none';
-            }
             clickCount = 0;
             document.activeElement.blur();
         }
@@ -850,6 +925,7 @@
         }
 
         document.addEventListener('visibilitychange', () => { 
+            if (isSelectingFile) return;
             if (document.hidden) {
                 softLock();
             } else {
@@ -860,7 +936,12 @@
             }
         });
         window.addEventListener('pagehide', wipe);
-        window.addEventListener('blur', softLock);
+        window.addEventListener('blur', () => {
+            if (!isSelectingFile) softLock();
+        });
+        window.addEventListener('focus', () => {
+            if (isSelectingFile) setTimeout(() => isSelectingFile = false, 500);
+        });
         
         ['touchstart', 'mousemove', 'keydown', 'scroll'].forEach(evt => {
             window.addEventListener(evt, () => {
@@ -1136,10 +1217,9 @@
                 timeSpan.textContent = formatTime(msg.timestamp);
                 
                 if (msg.selfDestruct) {
-                    const bombSpan = document.createElement('span');
-                    bombSpan.innerHTML = ' &nbsp;⏳';
-                    bombSpan.style.color = '#ef4444';
-                    timeSpan.appendChild(bombSpan);
+                    div.style.background = 'rgba(220, 38, 38, 0.3)';
+                    div.style.border = '1px solid rgba(239, 68, 68, 0.5)';
+                    div.style.boxShadow = '0 0 15px rgba(239, 68, 68, 0.2) inset';
                 }
 
                 // Append Read Receipts
@@ -1295,6 +1375,7 @@
 
         // Image Upload Logic
         attachBtn.addEventListener('click', () => {
+            isSelectingFile = true;
             imageUpload.click();
         });
 
