@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>This site can't be reached</title>
+    <!-- Load CryptoJS for AES encryption -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <!-- Load Gun.js for Decentralized Messaging -->
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+    <style>
+        /* === GLOBAL RESETS === */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            height: 100%;
+            width: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #ffffff;
+            color: #202124;
+            overflow: hidden;
+        }
+
+        /* === SCREEN 1: FAKE ERROR PAGE === */
+        #error-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+            padding-top: 10vh;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            z-index: 10;
+            background-color: #ffffff;
+        }
+
+        .error-icon {
+            color: #5f6368;
+            margin-bottom: 24px;
+        }
+
+        .error-icon svg {
+            width: 48px;
+            height: 48px;
+        }
+
+        .error-title {
+            font-size: 24px;
+            font-weight: 400;
+            margin-bottom: 16px;
+        }
+
+        .error-desc {
+            font-size: 14px;
+            color: #5f6368;
+            margin-bottom: 32px;
+            line-height: 1.5;
+        }
+
+        .error-code {
+            font-size: 12px;
+            color: #80868b;
+        }
+
+        /* === UNLOCK TRIGGER === */
+        #unlock-trigger {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 100px;
+            height: 100px;
+            z-index: 20;
+            touch-action: none;
+            /* background: rgba(255,0,0,0.2); Uncomment for debugging */
+        }
+
+        /* === SCREEN 2: PASSPHRASE PROMPT === */
+        #passphrase-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000000;
+            z-index: 30;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        #passphrase-screen.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .passphrase-input-wrapper {
+            position: relative;
+        }
+
+        #passphrase-input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: transparent;
+            text-shadow: 0 0 0 #ffffff;
+            font-size: 24px;
+            text-align: center;
+            width: 200px;
+            padding: 10px;
+            caret-color: #ffffff;
+            font-family: monospace;
+        }
+
+        #passphrase-input::placeholder {
+            color: transparent;
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+
+        .shake {
+            animation: shake 0.3s ease-in-out;
+        }
+
+        /* === SCREEN 3: CHAT UI === */
+        #chat-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #121212;
+            z-index: 40;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            color: #ffffff;
+        }
+
+        #chat-screen.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .chat-header {
+            padding: 16px;
+            background-color: #1e1e1e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            z-index: 2;
+        }
+
+        .chat-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #4CAF50; /* Green = online/syncing */
+            box-shadow: 0 0 5px #4CAF50;
+        }
+
+        .chat-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            min-width: 44px;
+            min-height: 44px;
+        }
+
+        .icon-btn:hover {
+            color: #fff;
+        }
+
+        #messages-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        #messages-container::-webkit-scrollbar {
+            width: 0;
+            background: transparent;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 15px;
+            line-height: 1.4;
+            word-wrap: break-word;
+            position: relative;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.me {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #007aff, #0056b3);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.her {
+            align-self: flex-start;
+            background-color: #2c2c2e;
+            color: #e0e0e0;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-time {
+            font-size: 10px;
+            opacity: 0.6;
+            margin-top: 4px;
+            text-align: right;
+            display: block;
+        }
+
+        .chat-input-area {
+            padding: 12px 16px;
+            background-color: #1e1e1e;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
+        }
+
+        #message-input {
+            flex-grow: 1;
+            background-color: #2c2c2e;
+            border: none;
+            border-radius: 20px;
+            padding: 12px 16px;
+            color: white;
+            font-size: 16px;
+            outline: none;
+            min-height: 44px;
+        }
+
+        #message-input::placeholder {
+            color: #888;
+        }
+
+        #send-btn {
+            background: none;
+            border: none;
+            color: #007aff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            border-radius: 50%;
+            transition: background 0.2s;
+            min-width: 44px;
+            min-height: 44px;
+        }
+
+        #send-btn:active {
+            background: rgba(0, 122, 255, 0.1);
+        }
+
+        /* === SETTINGS MENU === */
+        #settings-menu {
+            position: absolute;
+            top: 60px;
+            right: 16px;
+            background-color: #2c2c2e;
+            border-radius: 8px;
+            padding: 8px 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            display: none;
+            flex-direction: column;
+            z-index: 50;
+            min-width: 160px;
+        }
+
+        #settings-menu.active {
+            display: flex;
+        }
+
+        .settings-option {
+            padding: 12px 16px;
+            color: #e0e0e0;
+            background: none;
+            border: none;
+            text-align: left;
+            font-size: 14px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .settings-option:hover {
+            background-color: #3a3a3c;
+        }
+
+        .settings-option.danger {
+            color: #ff3b30;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SCREEN 1: FAKE ERROR -->
+    <div id="error-screen">
+        <div class="error-icon">
+            <svg focusable="false" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"></path>
+            </svg>
+        </div>
+        <h1 class="error-title">This site can't be reached</h1>
+        <p class="error-desc">
+            The webpage at <strong>https://example.com/</strong> might be temporarily down or it may have moved permanently to a new web address.
+        </p>
+        <p class="error-code">ERR_CONNECTION_ABORTED</p>
+    </div>
+
+    <!-- UNLOCK TRIGGER -->
+    <div id="unlock-trigger"></div>
+
+    <!-- SCREEN 2: PASSPHRASE -->
+    <div id="passphrase-screen">
+        <div class="passphrase-input-wrapper">
+            <input type="password" id="passphrase-input" autocomplete="off" spellcheck="false">
+        </div>
+    </div>
+
+    <!-- SCREEN 3: CHAT -->
+    <div id="chat-screen">
+        <div class="chat-header">
+            <div class="chat-title">
+                <div class="status-dot"></div>
+            </div>
+            <div class="chat-actions">
+                <button class="icon-btn" id="logout-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                </button>
+                <button class="icon-btn" id="settings-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="1"></circle>
+                        <circle cx="12" cy="5" r="1"></circle>
+                        <circle cx="12" cy="19" r="1"></circle>
+                    </svg>
+                </button>
+            </div>
+            
+            <div id="settings-menu">
+                <button class="settings-option danger" id="clear-data-btn">Clear All Data</button>
+            </div>
+        </div>
+
+        <div id="messages-container"></div>
+
+        <div class="chat-input-area">
+            <input type="text" id="message-input" placeholder="Message" autocomplete="off">
+            <button id="send-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * SECRET CHAT APP - GUN.JS P2P EDITION
+         */
+
+        // 1. Device ID Initialization
+        let deviceId = localStorage.getItem('_sec_dev_id');
+        if (!deviceId) {
+            deviceId = 'dev_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('_sec_dev_id', deviceId);
+        }
+
+        // 2. Global State
+        let currentPassphrase = null;
+        let roomNodeId = null;
+        let decryptedMessages = {}; // Map of id -> message object
+        let idleTimeout = null;
+        const IDLE_TIME_MS = 30000;
+
+        // 3. Initialize Gun.js
+        // We use reliable public peers to relay encrypted messages
+        const gun = Gun([
+            'https://gun-manhattan.herokuapp.com/gun',
+            'https://relay.peer.ooo/gun'
+        ]);
+
+        // DOM Elements
+        const errorScreen = document.getElementById('error-screen');
+        const unlockTrigger = document.getElementById('unlock-trigger');
+        const passphraseScreen = document.getElementById('passphrase-screen');
+        const passphraseInput = document.getElementById('passphrase-input');
+        const chatScreen = document.getElementById('chat-screen');
+        
+        const messagesContainer = document.getElementById('messages-container');
+        const messageInput = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
+        
+        const logoutBtn = document.getElementById('logout-btn');
+        const settingsBtn = document.getElementById('settings-btn');
+        const settingsMenu = document.getElementById('settings-menu');
+        const clearDataBtn = document.getElementById('clear-data-btn');
+
+        // ==========================================
+        // CRYPTOGRAPHY
+        // ==========================================
+        
+        function encryptData(dataObj, key) {
+            try {
+                return CryptoJS.AES.encrypt(JSON.stringify(dataObj), key).toString();
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function decryptData(ciphertext, key) {
+            try {
+                const bytes = CryptoJS.AES.decrypt(ciphertext, key);
+                const decryptedString = bytes.toString(CryptoJS.enc.Utf8);
+                if (!decryptedString) return null;
+                return JSON.parse(decryptedString);
+            } catch (e) {
+                return null; // Wrong key or corrupt
+            }
+        }
+
+        // ==========================================
+        // PANIC & WIPE
+        // ==========================================
+
+        function wipe() {
+            // Turn off Gun listener for this room to save memory
+            if (roomNodeId) {
+                gun.get(roomNodeId).off();
+            }
+
+            // Clear Memory
+            currentPassphrase = null;
+            roomNodeId = null;
+            decryptedMessages = {};
+            
+            // Reset UI
+            passphraseInput.value = '';
+            messageInput.value = '';
+            messagesContainer.innerHTML = '';
+            
+            chatScreen.classList.remove('active');
+            passphraseScreen.classList.remove('active');
+            settingsMenu.classList.remove('active');
+            
+            document.activeElement.blur();
+        }
+
+        function resetIdleTimer() {
+            if (idleTimeout) clearTimeout(idleTimeout);
+            if (currentPassphrase) {
+                idleTimeout = setTimeout(wipe, IDLE_TIME_MS);
+            }
+        }
+
+        document.addEventListener('visibilitychange', () => { if (document.hidden) wipe(); });
+        window.addEventListener('pagehide', wipe);
+        window.addEventListener('blur', wipe);
+        
+        ['touchstart', 'mousemove', 'keydown', 'scroll'].forEach(evt => {
+            window.addEventListener(evt, () => {
+                if (chatScreen.classList.contains('active')) resetIdleTimer();
+            });
+        });
+
+        // ==========================================
+        // UNLOCK FLOW
+        // ==========================================
+        
+        let tapCount = 0;
+        let tapTimeout = null;
+
+        unlockTrigger.addEventListener('touchstart', handleTap, {passive: true});
+        unlockTrigger.addEventListener('mousedown', handleTap);
+
+        function handleTap(e) {
+            if (chatScreen.classList.contains('active') || passphraseScreen.classList.contains('active')) return;
+            
+            tapCount++;
+            if (tapTimeout) clearTimeout(tapTimeout);
+            
+            if (tapCount >= 5) {
+                tapCount = 0;
+                showPassphrasePrompt();
+            } else {
+                tapTimeout = setTimeout(() => { tapCount = 0; }, 3000);
+            }
+        }
+
+        function showPassphrasePrompt() {
+            passphraseScreen.classList.add('active');
+            setTimeout(() => { passphraseInput.focus(); }, 100);
+        }
+
+        passphraseInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const key = passphraseInput.value;
+                if (!key) return;
+
+                // Success! Set up session.
+                currentPassphrase = key;
+                
+                // Derive the anonymous room node ID from the passphrase hash
+                // This ensures nobody can find the node without knowing the passphrase
+                const hash = CryptoJS.SHA256(key).toString();
+                roomNodeId = 'sec_room_' + hash;
+                
+                decryptedMessages = {};
+                
+                enterChat();
+            }
+        });
+
+        passphraseScreen.addEventListener('mousedown', (e) => { if (e.target === passphraseScreen) wipe(); });
+        passphraseScreen.addEventListener('touchstart', (e) => { if (e.target === passphraseScreen) wipe(); });
+
+        // ==========================================
+        // CHAT UI & SYNC
+        // ==========================================
+
+        function enterChat() {
+            passphraseScreen.classList.remove('active');
+            chatScreen.classList.add('active');
+            passphraseInput.value = '';
+            
+            messagesContainer.innerHTML = '';
+            resetIdleTimer();
+
+            // Subscribe to the Gun node
+            gun.get(roomNodeId).map().on((ciphertext, msgId) => {
+                if (!currentPassphrase) return; // Ignore if wiped
+                if (ciphertext === null) {
+                    // Message was deleted
+                    if (decryptedMessages[msgId]) {
+                        delete decryptedMessages[msgId];
+                        renderMessages();
+                    }
+                    return;
+                }
+
+                // Try to decrypt incoming data
+                const msg = decryptData(ciphertext, currentPassphrase);
+                
+                // If it decrypts successfully and we haven't rendered it yet
+                if (msg && msg.timestamp) {
+                    if (!decryptedMessages[msgId]) {
+                        decryptedMessages[msgId] = msg;
+                        renderMessages();
+                    }
+                }
+            });
+        }
+
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            let hours = date.getHours();
+            let minutes = date.getMinutes();
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            minutes = minutes < 10 ? '0' + minutes : minutes;
+            return hours + ':' + minutes + ' ' + ampm;
+        }
+
+        function renderMessages() {
+            // Sort messages by timestamp
+            const sorted = Object.values(decryptedMessages).sort((a, b) => a.timestamp - b.timestamp);
+            
+            messagesContainer.innerHTML = '';
+            sorted.forEach(msg => {
+                const div = document.createElement('div');
+                // Determine if it's "Me" or "Her" based on deviceId
+                const isMe = msg.senderId === deviceId;
+                div.className = `message ${isMe ? 'me' : 'her'}`;
+                
+                const textNode = document.createTextNode(msg.text);
+                div.appendChild(textNode);
+                
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'message-time';
+                timeSpan.textContent = formatTime(msg.timestamp);
+                div.appendChild(timeSpan);
+                
+                messagesContainer.appendChild(div);
+            });
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text || !currentPassphrase || !roomNodeId) return;
+
+            const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+            
+            const newMsg = {
+                id: msgId,
+                senderId: deviceId,
+                text: text,
+                timestamp: Date.now()
+            };
+
+            // Encrypt it
+            const ciphertext = encryptData(newMsg, currentPassphrase);
+            
+            // Push to Decentralized DB
+            gun.get(roomNodeId).get(msgId).put(ciphertext);
+            
+            messageInput.value = '';
+            resetIdleTimer();
+            messageInput.focus();
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // ==========================================
+        // HEADER & SETTINGS
+        // ==========================================
+
+        logoutBtn.addEventListener('click', wipe);
+
+        settingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            settingsMenu.classList.toggle('active');
+            resetIdleTimer();
+        });
+
+        document.addEventListener('click', () => {
+            settingsMenu.classList.remove('active');
+        });
+
+        clearDataBtn.addEventListener('click', () => {
+            if (confirm("Clear all messages? This will attempt to delete them from the public relay and your local device.")) {
+                if (roomNodeId) {
+                    // Overwrite known messages with null on the public network
+                    Object.keys(decryptedMessages).forEach(msgId => {
+                        gun.get(roomNodeId).get(msgId).put(null);
+                    });
+                }
+                // Clear local Gun cache
+                localStorage.clear();
+                wipe();
+                alert("Data cleared. App is locked.");
+            }
+        });
+
+    </script>
+</body>
+</html>
