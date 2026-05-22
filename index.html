@@ -6,8 +6,11 @@
     <title>This site can't be reached</title>
     <!-- Load CryptoJS for AES encryption -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-    <!-- Load MQTT.js for Highly Reliable WebSockets Messaging -->
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    
+    <!-- Load Firebase (Compat versions for easy single-file integration) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
+
     <style>
         /* === GLOBAL RESETS === */
         * {
@@ -386,12 +389,14 @@
             </div>
             <div class="chat-actions">
                 <button class="icon-btn" id="logout-btn">
+                    <!-- Padlock Icon -->
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                         <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                     </svg>
                 </button>
                 <button class="icon-btn" id="settings-btn">
+                    <!-- Menu Dots Icon -->
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="1"></circle>
                         <circle cx="12" cy="5" r="1"></circle>
@@ -420,29 +425,49 @@
 
     <script>
         /**
-         * SECRET CHAT APP - MQTT ENTERPRISE RELIABILITY EDITION
+         * SECRET CHAT APP - FIREBASE EDITION
          */
 
-        // 1. Device ID Initialization
+        // 1. Firebase Configuration (Provided by user)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDg5qJGnHD-a7ycStxZIFNYMWrQa1c-nt0",
+            authDomain: "error-404-7699f.firebaseapp.com",
+            databaseURL: "https://error-404-7699f-default-rtdb.firebaseio.com",
+            projectId: "error-404-7699f",
+            storageBucket: "error-404-7699f.firebasestorage.app",
+            messagingSenderId: "1035690690411",
+            appId: "1:1035690690411:web:204b2889184e6fa2062e2e",
+            measurementId: "G-ZC2EED8F1G"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // 2. Device ID Initialization
         let deviceId = localStorage.getItem('_sec_dev_id');
         if (!deviceId) {
             deviceId = 'dev_' + Math.random().toString(36).substr(2, 9);
             localStorage.setItem('_sec_dev_id', deviceId);
         }
 
-        // 2. Global State
+        // 3. Global State
         let currentPassphrase = null;
-        let mqttTopic = null;
+        let roomRef = null;
         let decryptedMessages = {}; // Dictionary: id -> message
         let idleTimeout = null;
-        let mqttClient = null;
         const IDLE_TIME_MS = 30000;
 
-        // Load local cache immediately to prevent blank screens
-        const localCache = localStorage.getItem('_sec_cache');
-        if (localCache) {
-            try { decryptedMessages = JSON.parse(localCache); } catch(e){}
-        }
+        // Track connection state
+        const connectedRef = db.ref(".info/connected");
+        const statusDot = document.getElementById('status-dot');
+        connectedRef.on("value", (snap) => {
+            if (snap.val() === true) {
+                statusDot.classList.add('connected');
+            } else {
+                statusDot.classList.remove('connected');
+            }
+        });
 
         // DOM Elements
         const errorScreen = document.getElementById('error-screen');
@@ -450,7 +475,6 @@
         const passphraseScreen = document.getElementById('passphrase-screen');
         const passphraseInput = document.getElementById('passphrase-input');
         const chatScreen = document.getElementById('chat-screen');
-        const statusDot = document.getElementById('status-dot');
         
         const messagesContainer = document.getElementById('messages-container');
         const messageInput = document.getElementById('message-input');
@@ -484,34 +508,25 @@
             }
         }
 
-        function persistCache() {
-            // Save the unencrypted history locally so we have it before server syncs
-            // (Note: To be extremely secure, this could be encrypted too, but we
-            // assume the device itself is locked. If required, we can AES this.)
-            localStorage.setItem('_sec_cache', JSON.stringify(decryptedMessages));
-        }
-
         // ==========================================
         // PANIC & WIPE
         // ==========================================
 
         function wipe() {
-            // Kill internet connection instantly
-            if (mqttClient) {
-                mqttClient.end(true); // true = force kill immediately
-                mqttClient = null;
+            // Unsubscribe from Firebase to stop background syncing when locked
+            if (roomRef) {
+                roomRef.off();
+                roomRef = null;
             }
 
             // Clear Memory
             currentPassphrase = null;
-            mqttTopic = null;
             decryptedMessages = {};
             
             // Reset UI
             passphraseInput.value = '';
             messageInput.value = '';
             messagesContainer.innerHTML = '';
-            statusDot.classList.remove('connected');
             
             chatScreen.classList.remove('active');
             passphraseScreen.classList.remove('active');
@@ -573,9 +588,9 @@
 
                 currentPassphrase = key;
                 
-                // Deterministic topic generation
+                // Use SHA256 to create a totally anonymous path in Firebase
                 const hash = CryptoJS.SHA256(key).toString();
-                mqttTopic = 'sc_room/' + hash;
+                roomRef = db.ref('rooms/' + hash);
                 
                 enterChat();
             }
@@ -585,7 +600,7 @@
         passphraseScreen.addEventListener('touchstart', (e) => { if (e.target === passphraseScreen) wipe(); });
 
         // ==========================================
-        // CHAT UI & MQTT SYNC
+        // CHAT UI & FIREBASE SYNC
         // ==========================================
 
         function enterChat() {
@@ -593,34 +608,35 @@
             chatScreen.classList.add('active');
             passphraseInput.value = '';
             
+            decryptedMessages = {};
+            messagesContainer.innerHTML = '';
             resetIdleTimer();
-            renderMessages(); // Render local cache immediately
 
-            // Connect to massive Enterprise IoT public broker (EMQX)
-            mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
+            // Listen for any old or new messages added to Firebase
+            roomRef.on('child_added', (snapshot) => {
+                if (!currentPassphrase) return; // Ignore if wiped
 
-            mqttClient.on('connect', () => {
-                statusDot.classList.add('connected');
-                // Subscribe to our anonymous topic
-                mqttClient.subscribe(mqttTopic);
+                const data = snapshot.val();
+                if (data && data.ciphertext) {
+                    const msg = decryptData(data.ciphertext, currentPassphrase);
+                    
+                    if (msg && msg.id && !decryptedMessages[msg.id]) {
+                        decryptedMessages[msg.id] = msg;
+                        renderMessages();
+                    }
+                }
             });
-
-            mqttClient.on('offline', () => {
-                statusDot.classList.remove('connected');
-            });
-
-            mqttClient.on('message', (topic, payload) => {
-                const ciphertext = payload.toString();
-                if (!ciphertext) return; // empty payload (wiped)
-
-                // The payload is an AES encrypted JSON string of the ENTIRE history dictionary
-                const incomingHistory = decryptData(ciphertext, currentPassphrase);
-                
-                if (incomingHistory) {
-                    // Merge incoming history with our local history so nothing is lost
-                    decryptedMessages = { ...decryptedMessages, ...incomingHistory };
-                    persistCache();
-                    renderMessages();
+            
+            // Listen for deletions (e.g. if the other person clears data)
+            roomRef.on('child_removed', (snapshot) => {
+                if (!currentPassphrase) return;
+                const data = snapshot.val();
+                if (data && data.ciphertext) {
+                    const msg = decryptData(data.ciphertext, currentPassphrase);
+                    if (msg && decryptedMessages[msg.id]) {
+                        delete decryptedMessages[msg.id];
+                        renderMessages();
+                    }
                 }
             });
         }
@@ -660,26 +676,27 @@
 
         function sendMessage() {
             const text = messageInput.value.trim();
-            if (!text || !currentPassphrase || !mqttTopic || !mqttClient) return;
+            if (!text || !currentPassphrase || !roomRef) return;
 
             const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
             
-            decryptedMessages[msgId] = {
+            const newMsg = {
                 id: msgId,
                 senderId: deviceId,
                 text: text,
                 timestamp: Date.now()
             };
 
-            persistCache();
+            // Immediately display on local screen for fast feedback
+            decryptedMessages[msgId] = newMsg;
             renderMessages();
 
-            // Pack the entire updated dictionary into one giant encrypted safe
-            const ciphertext = encryptData(decryptedMessages, currentPassphrase);
-            
-            // Send it to the server. `retain: true` means the server HOLDS this safe
-            // and immediately hands it to whoever subscribes next (offline delivery).
-            mqttClient.publish(mqttTopic, ciphertext, { qos: 1, retain: true });
+            // Encrypt and send to Firebase
+            const ciphertext = encryptData(newMsg, currentPassphrase);
+            roomRef.push({
+                ciphertext: ciphertext,
+                timestamp: firebase.database.ServerValue.TIMESTAMP // Track true server time for cleanup if needed
+            });
             
             messageInput.value = '';
             resetIdleTimer();
@@ -708,14 +725,15 @@
         });
 
         clearDataBtn.addEventListener('click', () => {
-            if (confirm("Clear all messages? This will delete them from the internet and your device.")) {
-                if (mqttClient && mqttTopic) {
-                    // Send an empty string with retain:true. This deletes the retained message on the server!
-                    mqttClient.publish(mqttTopic, '', { qos: 1, retain: true });
+            if (confirm("Clear all messages? This will instantly delete them from the Firebase database.")) {
+                if (roomRef) {
+                    roomRef.remove().then(() => {
+                        wipe();
+                        alert("Data cleared from Google servers.");
+                    });
+                } else {
+                    wipe();
                 }
-                localStorage.removeItem('_sec_cache');
-                wipe();
-                alert("Data cleared and server wiped.");
             }
         });
 
